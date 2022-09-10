@@ -1,0 +1,19 @@
+[package]
+name = "language-matcher"
+version = "0.1.0"
+authors = ["Berrysoft <Strawberry_Str@hotmail.com>"]
+categories = ["internationalization", "localization"]
+description = "Implement an async iterator with return value."
+edition = "2021"
+keywords = ["language", "langid"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/Berrysoft/language-matcher"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde-xml-rs = "0.6"
+icu_locid = { version = "1.0.0-beta1", features = ["std"] }
+icu_locid_transform = { version = "1.0.0-beta1", features = ["serde"] }
+icu_provider = { version = "1.0.0-beta1", features = ["sync"] }
+icu_provider_blob = "1.0.0-beta1"
