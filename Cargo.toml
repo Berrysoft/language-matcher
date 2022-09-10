@@ -1,9 +1,9 @@
 [package]
 name = "language-matcher"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Berrysoft <Strawberry_Str@hotmail.com>"]
 categories = ["internationalization", "localization"]
-description = "Implement an async iterator with return value."
+description = "A language matcher with CLDR."
 edition = "2021"
 keywords = ["language", "langid"]
 license = "MIT"
