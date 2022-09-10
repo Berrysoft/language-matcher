@@ -1,4 +1,5 @@
 //! A language matcher with CLDR.
+//!
 //! The "sync" feature of `icu_provider` is enabled because we like Sync.
 
 #![warn(missing_docs)]
