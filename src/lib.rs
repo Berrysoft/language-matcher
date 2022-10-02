@@ -7,7 +7,7 @@
 
 use icu_locid::LanguageIdentifier;
 use icu_locid_transform::LocaleExpander;
-use icu_provider_blob::StaticDataProvider;
+use icu_provider_blob::BlobDataProvider;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 
@@ -198,7 +198,7 @@ type Variables = HashMap<String, HashSet<String>>;
 
 impl From<SupplementalData> for LanguageMatcher {
     fn from(data: SupplementalData) -> Self {
-        let provider = StaticDataProvider::try_new_from_static_blob(CLDR_BIN).unwrap();
+        let provider = BlobDataProvider::try_new_from_static_blob(CLDR_BIN).unwrap();
         let expander = LocaleExpander::try_new_with_buffer_provider(&provider).unwrap();
 
         let mut paradiam = HashSet::new();

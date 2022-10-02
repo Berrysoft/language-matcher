@@ -1,6 +1,6 @@
 [package]
 name = "language-matcher"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Berrysoft <Strawberry_Str@hotmail.com>"]
 categories = ["internationalization", "localization"]
 description = "A language matcher with CLDR."
@@ -13,7 +13,7 @@ repository = "https://github.com/Berrysoft/language-matcher"
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde-xml-rs = "0.6"
-icu_locid = { version = "1.0.0-beta1", features = ["std"] }
-icu_locid_transform = { version = "1.0.0-beta1", features = ["serde"] }
-icu_provider = { version = "1.0.0-beta1", features = ["sync"] }
-icu_provider_blob = "1.0.0-beta1"
+icu_locid = { version = "1.0.0", features = ["std"] }
+icu_locid_transform = { version = "1.0.0", features = ["serde"] }
+icu_provider = { version = "1.0.0", features = ["sync"] }
+icu_provider_blob = "1.0.0"
