@@ -110,21 +110,27 @@ enum LanguageMatchItem {
 
 #[derive(Debug, Deserialize, PartialEq)]
 struct ParadigmLocales {
+    #[serde(rename = "@locales")]
     pub locales: String,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
 struct MatchVariable {
+    #[serde(rename = "@id")]
     pub id: String,
+    #[serde(rename = "@value")]
     pub value: String,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
 struct LanguageMatch {
+    #[serde(rename = "@desired")]
     pub desired: LanguageIdentifierRule,
+    #[serde(rename = "@supported")]
     pub supported: LanguageIdentifierRule,
+    #[serde(rename = "@distance")]
     pub distance: u16,
-    #[serde(default)]
+    #[serde(default, rename = "@oneway")]
     pub oneway: bool,
 }
 
@@ -242,7 +248,7 @@ impl From<SupplementalData> for LanguageMatcher {
 impl LanguageMatcher {
     /// Creates an instance of [`LanguageMatcher`].
     pub fn new() -> Self {
-        let data: SupplementalData = serde_xml_rs::from_str(LANGUAGE_INFO).unwrap();
+        let data: SupplementalData = quick_xml::de::from_str(LANGUAGE_INFO).unwrap();
         data.into()
     }
 

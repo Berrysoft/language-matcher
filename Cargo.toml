@@ -12,8 +12,8 @@ repository = "https://github.com/Berrysoft/language-matcher"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-serde-xml-rs = "0.6"
-icu_locid = { version = "1.0.0", features = ["std"] }
-icu_locid_transform = { version = "1.0.0", features = ["serde"] }
-icu_provider = { version = "1.0.0", features = ["sync"] }
-icu_provider_blob = "1.0.0"
+quick-xml = { version = "0.27", features = ["serialize"] }
+icu_locid = { version = "1.0", features = ["std"] }
+icu_locid_transform = { version = "1.0", features = ["serde"] }
+icu_provider = { version = "1.0", features = ["sync"] }
+icu_provider_blob = "1.0"
