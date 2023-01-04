@@ -135,8 +135,8 @@ struct LanguageMatches {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 struct LanguageMatching {
-    #[serde(rename = "$value")]
     pub language_matches: LanguageMatches,
 }
 
