@@ -1,6 +1,6 @@
 [package]
 name = "language-matcher"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Berrysoft <Strawberry_Str@hotmail.com>"]
 categories = ["internationalization", "localization"]
 description = "A language matcher with CLDR."
