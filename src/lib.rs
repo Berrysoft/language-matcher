@@ -101,42 +101,42 @@ impl Rule<&'_ LanguageIdentifier> for &'_ LanguageIdentifierRule {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-enum LanguageMatchItem {
-    ParadigmLocales(ParadigmLocales),
-    MatchVariable(MatchVariable),
-    LanguageMatch(LanguageMatch),
-}
-
-#[derive(Debug, Deserialize, PartialEq)]
 struct ParadigmLocales {
+    #[serde(rename = "@locales")]
     pub locales: String,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
 struct MatchVariable {
+    #[serde(rename = "@id")]
     pub id: String,
+    #[serde(rename = "@value")]
     pub value: String,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
 struct LanguageMatch {
+    #[serde(rename = "@desired")]
     pub desired: LanguageIdentifierRule,
+    #[serde(rename = "@supported")]
     pub supported: LanguageIdentifierRule,
+    #[serde(rename = "@distance")]
     pub distance: u16,
-    #[serde(default)]
+    #[serde(default, rename = "@oneway")]
     pub oneway: bool,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 struct LanguageMatches {
-    #[serde(rename = "$value")]
-    pub matches: Vec<LanguageMatchItem>,
+    pub paradigm_locales: ParadigmLocales,
+    pub match_variable: Vec<MatchVariable>,
+    pub language_match: Vec<LanguageMatch>,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 struct LanguageMatching {
-    #[serde(rename = "$value")]
     pub language_matches: LanguageMatches,
 }
 
@@ -188,7 +188,7 @@ const CLDR_BIN: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/dat
 /// assert_eq!(matcher.matches(langid!("zh-CN"), &accepts),Some((&langid!("zh-Hans"), 0)));
 /// ```
 pub struct LanguageMatcher {
-    paradiam: HashSet<LanguageIdentifier>,
+    paradigm: HashSet<LanguageIdentifier>,
     vars: Variables,
     rules: Vec<LanguageMatch>,
     expander: LocaleExpander,
@@ -201,39 +201,34 @@ impl From<SupplementalData> for LanguageMatcher {
         let provider = BlobDataProvider::try_new_from_static_blob(CLDR_BIN).unwrap();
         let expander = LocaleExpander::try_new_with_buffer_provider(&provider).unwrap();
 
-        let mut paradiam = HashSet::new();
-        let mut vars = HashMap::new();
-        let mut rules = vec![];
-        let data = data.language_matching.language_matches.matches;
-        for item in data {
-            match item {
-                LanguageMatchItem::ParadigmLocales(ParadigmLocales { locales }) => {
-                    let locales = locales
-                        .split(' ')
-                        .map(|s| s.parse().unwrap())
-                        .map(|mut lang| {
-                            expander.maximize(&mut lang);
-                            lang
-                        });
-                    paradiam.extend(locales)
-                }
-                LanguageMatchItem::MatchVariable(MatchVariable { id, value }) => {
-                    assert!(id.starts_with('$'));
-                    // TODO: we need to support '-' as well, but there's no '-' in the data.
-                    vars.insert(
-                        id[1..].to_string(),
-                        value.split('+').map(|s| s.to_string()).collect(),
-                    );
-                }
-                LanguageMatchItem::LanguageMatch(m) => {
-                    rules.push(m);
-                }
-            }
-        }
+        let matches = data.language_matching.language_matches;
+
+        let paradigm = matches
+            .paradigm_locales
+            .locales
+            .split(' ')
+            .map(|s| {
+                let mut lang = s.parse().unwrap();
+                expander.maximize(&mut lang);
+                lang
+            })
+            .collect::<HashSet<_>>();
+        let vars = matches
+            .match_variable
+            .into_iter()
+            .map(|MatchVariable { id, value }| {
+                debug_assert!(id.starts_with('$'));
+                // TODO: we need to support '-' as well, but there's no '-' in the data.
+                (
+                    id[1..].to_string(),
+                    value.split('+').map(|s| s.to_string()).collect(),
+                )
+            })
+            .collect::<HashMap<_, _>>();
         Self {
-            paradiam,
+            paradigm,
             vars,
-            rules,
+            rules: matches.language_match,
             expander,
         }
     }
@@ -242,7 +237,7 @@ impl From<SupplementalData> for LanguageMatcher {
 impl LanguageMatcher {
     /// Creates an instance of [`LanguageMatcher`].
     pub fn new() -> Self {
-        let data: SupplementalData = serde_xml_rs::from_str(LANGUAGE_INFO).unwrap();
+        let data: SupplementalData = quick_xml::de::from_str(LANGUAGE_INFO).unwrap();
         data.into()
     }
 
@@ -324,7 +319,7 @@ impl LanguageMatcher {
             }
             if matches {
                 let mut distance = rule.distance * 10;
-                if self.is_paradiam(desired) ^ self.is_paradiam(supported) {
+                if self.is_paradigm(desired) ^ self.is_paradigm(supported) {
                     distance -= 1
                 }
                 return distance;
@@ -333,8 +328,8 @@ impl LanguageMatcher {
         unreachable!()
     }
 
-    fn is_paradiam(&self, lang: &LanguageIdentifier) -> bool {
-        self.paradiam.contains(lang)
+    fn is_paradigm(&self, lang: &LanguageIdentifier) -> bool {
+        self.paradigm.contains(lang)
     }
 }
 
