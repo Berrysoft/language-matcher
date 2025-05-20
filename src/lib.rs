@@ -6,7 +6,6 @@
 #![deny(unsafe_code)]
 
 use icu_locale::{LanguageIdentifier, LocaleExpander};
-use icu_provider_blob::BlobDataProvider;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 
@@ -149,7 +148,6 @@ const LANGUAGE_INFO: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/data/languageInfo.xml"
 ));
-const CLDR_BIN: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/cldr.bin"));
 
 /// This is a language matcher.
 /// The distance of two languages are calculated by the algorithm of [CLDR].
@@ -160,7 +158,7 @@ const CLDR_BIN: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/dat
 /// # Examples
 ///
 /// ```
-/// use icu_locid::langid;
+/// use icu_locale::langid;
 /// use language_matcher::LanguageMatcher;
 ///
 /// let matcher = LanguageMatcher::new();
@@ -173,7 +171,7 @@ const CLDR_BIN: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/dat
 /// With the distance, you can choose the nearst language from a set of languages:
 ///
 /// ```
-/// use icu_locid::langid;
+/// use icu_locale::langid;
 /// use language_matcher::LanguageMatcher;
 ///
 /// let matcher = LanguageMatcher::new();
@@ -197,8 +195,7 @@ type Variables = HashMap<String, HashSet<String>>;
 
 impl From<SupplementalData> for LanguageMatcher {
     fn from(data: SupplementalData) -> Self {
-        let provider = BlobDataProvider::try_new_from_static_blob(CLDR_BIN).unwrap();
-        let expander = LocaleExpander::try_new_common_with_buffer_provider(&provider).unwrap();
+        let expander = LocaleExpander::new_extended();
 
         let matches = data.language_matching.language_matches;
 
