@@ -5,8 +5,7 @@
 #![warn(missing_docs)]
 #![deny(unsafe_code)]
 
-use icu_locid::LanguageIdentifier;
-use icu_locid_transform::LocaleExpander;
+use icu_locale::{LanguageIdentifier, LocaleExpander};
 use icu_provider_blob::BlobDataProvider;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
@@ -199,7 +198,7 @@ type Variables = HashMap<String, HashSet<String>>;
 impl From<SupplementalData> for LanguageMatcher {
     fn from(data: SupplementalData) -> Self {
         let provider = BlobDataProvider::try_new_from_static_blob(CLDR_BIN).unwrap();
-        let expander = LocaleExpander::try_new_with_buffer_provider(&provider).unwrap();
+        let expander = LocaleExpander::try_new_common_with_buffer_provider(&provider).unwrap();
 
         let matches = data.language_matching.language_matches;
 
@@ -246,16 +245,16 @@ impl LanguageMatcher {
     ///
     /// `None` will be returned if no language gives the distance less than 1000.
     /// That usually means no language matches the desired one.
-    pub fn matches<L: AsRef<LanguageIdentifier>>(
+    pub fn matches<'a>(
         &self,
         mut desired: LanguageIdentifier,
-        supported: impl IntoIterator<Item = L>,
-    ) -> Option<(L, u16)> {
+        supported: impl IntoIterator<Item = &'a LanguageIdentifier>,
+    ) -> Option<(&'a LanguageIdentifier, u16)> {
         self.expander.maximize(&mut desired);
         supported
             .into_iter()
             .map(|s| {
-                let mut max_s = s.as_ref().clone();
+                let mut max_s = s.clone();
                 self.expander.maximize(&mut max_s);
                 (s, self.distance_impl(desired.clone(), max_s))
             })
@@ -342,7 +341,7 @@ impl Default for LanguageMatcher {
 #[cfg(test)]
 mod test {
     use crate::LanguageMatcher;
-    use icu_locid::langid;
+    use icu_locale::langid;
 
     #[test]
     fn distance() {
