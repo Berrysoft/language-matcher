@@ -6,39 +6,28 @@
 #![deny(unsafe_code)]
 
 use icu_locale::{LanguageIdentifier, LocaleExpander};
-use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
+
+include!(concat!(env!("OUT_DIR"), "/language_info.rs"));
+
+type Variables = HashMap<&'static str, HashSet<&'static str>>;
 
 trait Rule<T> {
     fn matches(self, tag: T, vars: &Variables) -> bool;
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 enum SubTagRule {
-    Str(String),
-    Var(String),
-    VarExclude(String),
+    Str(&'static str),
+    Var(&'static str),
+    VarExclude(&'static str),
     All,
-}
-
-impl From<&'_ str> for SubTagRule {
-    fn from(s: &'_ str) -> Self {
-        if s == "*" {
-            Self::All
-        } else if let Some(name) = s.strip_prefix("$!") {
-            Self::VarExclude(name.to_string())
-        } else if let Some(name) = s.strip_prefix('$') {
-            Self::Var(name.to_string())
-        } else {
-            Self::Str(s.to_string())
-        }
-    }
 }
 
 impl Rule<&'_ str> for &'_ SubTagRule {
     fn matches(self, tag: &str, vars: &Variables) -> bool {
         match self {
-            SubTagRule::Str(s) => s == tag,
+            SubTagRule::Str(s) => *s == tag,
             SubTagRule::Var(key) => vars[key].contains(tag),
             SubTagRule::VarExclude(key) => !vars[key].contains(tag),
             SubTagRule::All => true,
@@ -56,32 +45,11 @@ impl Rule<Option<&'_ str>> for Option<&'_ SubTagRule> {
     }
 }
 
-#[derive(Debug, PartialEq, Deserialize)]
-#[serde(from = "String")]
+#[derive(Debug, PartialEq)]
 struct LanguageIdentifierRule {
     pub language: SubTagRule,
     pub script: Option<SubTagRule>,
     pub region: Option<SubTagRule>,
-}
-
-impl From<&'_ str> for LanguageIdentifierRule {
-    fn from(s: &'_ str) -> Self {
-        let mut parts = s.split('_');
-        let language = parts.next().unwrap().into();
-        let script = parts.next().map(|s| s.into());
-        let region = parts.next().map(|s| s.into());
-        Self {
-            language,
-            script,
-            region,
-        }
-    }
-}
-
-impl From<String> for LanguageIdentifierRule {
-    fn from(s: String) -> Self {
-        s.as_str().into()
-    }
 }
 
 impl Rule<&'_ LanguageIdentifier> for &'_ LanguageIdentifierRule {
@@ -98,56 +66,41 @@ impl Rule<&'_ LanguageIdentifier> for &'_ LanguageIdentifierRule {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, PartialEq)]
 struct ParadigmLocales {
-    #[serde(rename = "@locales")]
-    pub locales: String,
+    pub locales: &'static [LanguageIdentifier],
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, PartialEq)]
 struct MatchVariable {
-    #[serde(rename = "@id")]
-    pub id: String,
-    #[serde(rename = "@value")]
-    pub value: String,
+    pub id: &'static str,
+    pub value: &'static [&'static str],
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, PartialEq)]
 struct LanguageMatch {
-    #[serde(rename = "@desired")]
     pub desired: LanguageIdentifierRule,
-    #[serde(rename = "@supported")]
     pub supported: LanguageIdentifierRule,
-    #[serde(rename = "@distance")]
     pub distance: u16,
-    #[serde(default, rename = "@oneway")]
     pub oneway: bool,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq)]
 struct LanguageMatches {
     pub paradigm_locales: ParadigmLocales,
-    pub match_variable: Vec<MatchVariable>,
-    pub language_match: Vec<LanguageMatch>,
+    pub match_variable: &'static [MatchVariable],
+    pub language_match: &'static [LanguageMatch],
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq)]
 struct LanguageMatching {
     pub language_matches: LanguageMatches,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq)]
 struct SupplementalData {
     pub language_matching: LanguageMatching,
 }
-
-const LANGUAGE_INFO: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/data/languageInfo.xml"
-));
 
 /// This is a language matcher.
 /// The distance of two languages are calculated by the algorithm of [CLDR].
@@ -185,41 +138,23 @@ const LANGUAGE_INFO: &str = include_str!(concat!(
 /// assert_eq!(matcher.matches(langid!("zh-CN"), &accepts),Some((&langid!("zh-Hans"), 0)));
 /// ```
 pub struct LanguageMatcher {
-    paradigm: HashSet<LanguageIdentifier>,
+    paradigm: HashSet<&'static LanguageIdentifier>,
     vars: Variables,
-    rules: Vec<LanguageMatch>,
+    rules: &'static [LanguageMatch],
     expander: LocaleExpander,
 }
 
-type Variables = HashMap<String, HashSet<String>>;
-
-impl From<SupplementalData> for LanguageMatcher {
-    fn from(data: SupplementalData) -> Self {
+impl From<&SupplementalData> for LanguageMatcher {
+    fn from(data: &SupplementalData) -> Self {
         let expander = LocaleExpander::new_extended();
 
-        let matches = data.language_matching.language_matches;
+        let matches = &data.language_matching.language_matches;
 
-        let paradigm = matches
-            .paradigm_locales
-            .locales
-            .split(' ')
-            .map(|s| {
-                let mut lang = s.parse().unwrap();
-                expander.maximize(&mut lang);
-                lang
-            })
-            .collect::<HashSet<_>>();
+        let paradigm = HashSet::from_iter(matches.paradigm_locales.locales);
         let vars = matches
             .match_variable
-            .into_iter()
-            .map(|MatchVariable { id, value }| {
-                debug_assert!(id.starts_with('$'));
-                // TODO: we need to support '-' as well, but there's no '-' in the data.
-                (
-                    id[1..].to_string(),
-                    value.split('+').map(|s| s.to_string()).collect(),
-                )
-            })
+            .iter()
+            .map(|MatchVariable { id, value }| (*id, HashSet::from_iter(value.iter().copied())))
             .collect::<HashMap<_, _>>();
         Self {
             paradigm,
@@ -233,8 +168,7 @@ impl From<SupplementalData> for LanguageMatcher {
 impl LanguageMatcher {
     /// Creates an instance of [`LanguageMatcher`].
     pub fn new() -> Self {
-        let data: SupplementalData = quick_xml::de::from_str(LANGUAGE_INFO).unwrap();
-        data.into()
+        Self::from(&LANGUAGE_INFO)
     }
 
     /// Choose the nearst language of desired language from the supported language collection.
@@ -306,7 +240,7 @@ impl LanguageMatcher {
     }
 
     fn distance_match(&self, desired: &LanguageIdentifier, supported: &LanguageIdentifier) -> u16 {
-        for rule in &self.rules {
+        for rule in self.rules {
             let mut matches = rule.desired.matches(desired, &self.vars)
                 && rule.supported.matches(supported, &self.vars);
             if !rule.oneway && !matches {
